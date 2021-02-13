@@ -45,6 +45,7 @@ kD: kubectl delete
 ip-lan:
   value: 'ip addr show |grep "inet " |grep -v 127.0.0. |head -1|cut -d" " -f6|cut -d/ -f1'
   expand: false
+lah: ls -lah
 pt: papertrail
 tf: terraform
 tf-fmt: terraform fmt -write=true -diff=true -recursive

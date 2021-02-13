@@ -2,16 +2,26 @@
 import os
 import re
 import sys
+sys.dont_write_bytecode = True
 
 from shlex import split
 from ruamel import yaml
 from leatherman.repr import __repr__
 
+from argparse import ArgumentParser
+
+DIR = os.path.abspath(os.path.dirname(__file__))
+CWD = os.path.abspath(os.getcwd())
+REL = os.path.relpath(DIR, CWD)
+
 CONFIGS = [
     '~/config/epithet/epithet.yml',
     '~/.epithet.yml',
-    './epithet.yml',
+    f'{REL}/epithet.yml',
 ]
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
 
 class NoConfigFoundError(Exception):
     def __init__(self, configs):
@@ -59,29 +69,42 @@ def load(config):
     raise ConfigNotLoadedError(config)
 
 class Epithet:
-    def __init__(self, configs, args):
-        self.config = find(configs)
+    def __init__(self, configs, cmdline):
+        self.config = find([
+            os.path.expanduser(config)
+            for config
+            in configs
+        ])
         self.cfg = load(self.config)
-        self.args = args
+        self.cmdline = cmdline
 
     __repr__ = __repr__
 
     def replace(self):
-        args = []
-        for i, arg in enumerate(self.args):
+        cmdline = []
+        for i, arg in enumerate(self.cmdline):
             alias = self.cfg.get(arg)
             if alias:
-                args += alias.replace(i)
+                cmdline += alias.replace(i)
             else:
-                args += [arg]
-#            if alias and (not alias.first or (alias.first and i==0)):
-#                args += alias.args
-#                continue
-#            args += [arg]
-        return args
+                cmdline += [arg]
+        return cmdline
 
 def main(args):
-    epithet = Epithet(CONFIGS, args)
+    parser = ArgumentParser()
+    parser.add_argument(
+        '-c', '--configs',
+        default=CONFIGS,
+        nargs='+',
+        help='default=%(default)s; set the defaults configs to check',
+    )
+    parser.add_argument(
+        'cmdline',
+        help='the cmdline',
+    )
+    ns = parser.parse_args(args)
+    eprint(f'ns.cmdline={ns.cmdline}')
+    epithet = Epithet(CONFIGS, split(ns.cmdline))
     print(*epithet.replace())
 
 if __name__ == '__main__':
