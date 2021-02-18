@@ -52,3 +52,31 @@ tf-fmt: terraform fmt -write=true -diff=true -recursive
 '|b': '| bash'
 '|g': '| grep'
 oy: -o -yaml
+G: '| grep'
+
+# more complex
+curl-follow: curl $1 -gkLs -o /dev/null -v 2>&1|grep -e '^< HTTP' -e '[L|l]ocation:'
+mine: sudo chown -R $USER:$USER "$@"
+yours: sudo chown -R root:root "$@"
+ours: sudo chmod -R 777 "$@"
+rm-tag: git tag -d $1; git push origin :$1
+cp-cd: cp $1 $2 && cd $(toplevel $2)
+mv-cd: mv $1 $2 && cd $(toplevel $2)
+mkdir-cd: mkdir -p $1 && cd $1
+github-url: |
+  FILENAME=$1
+  REPOPATH=$(git rev-parse --show-toplevel)
+  RELPATH=$(realpath --relative-to="$REPOPATH" "$PWD")
+  FILEPATH="$RELPATH/$FILENAME"
+  FILEPATH="${FILEPATH#*./}"
+  BRANCH=$(git symbolic-ref --short HEAD)
+  REMOTE=$(git config --get remote.origin.url)
+  REPONAME=$(python3 <<-EOF
+  from urllib.parse import urlparse
+  pr = urlparse("$REMOTE")
+  print(pr.path)
+  EOF
+  )
+  TYPE=tree
+  [ -n "$FILENAME" ] && [ -f "$FILENAME" ] && TYPE=blob
+  echo "https://github.com$REPONAME/$TYPE/$BRANCH/$FILEPATH"
