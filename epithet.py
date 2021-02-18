@@ -33,6 +33,12 @@ class ConfigNotLoadedError(Exception):
         msg = f'config not loaded error: config={config}'
         super().__init__(msg)
 
+pattern = '\$[1-9]'
+regex = re.compile(pattern)
+def get_args(value):
+    matches = regex.findall(value)
+    return sorted(set(matches))
+
 class Alias:
     def __init__(self, name, value, expand=False, space=False, first=False):
         self.name = name
@@ -40,15 +46,21 @@ class Alias:
         self.expand = expand
         self.space = space
         self.first = first
+        self.args = get_args(value)
 
-    @property
-    def args(self):
-        return split(self.value)
-
-    def replace(self, pos):
-        if not self.first or (self.first and pos==0):
-            return split(self.value)
-        return [self.name]
+    def replace(self, index, rem):
+        if not self.first or (self.first and index==0):
+            value = self.value
+            if self.args:
+                if len(rem) >= len(self.args):
+                    index += len(self.args)
+                    for var, val in zip(self.args, rem):
+                        value = value.replace(var, val)
+                    return index, split(value)
+                else:
+                    return index, [self.name]
+            return index, split(value)
+        return index, [self.name]
 
     __repr__ = __repr__
 
@@ -82,12 +94,17 @@ class Epithet:
 
     def replace(self):
         cmdline = []
-        for i, arg in enumerate(self.cmdline):
+        i = 0
+        while i < len(self.cmdline):
+            arg = self.cmdline[i]
+            rem = self.cmdline[i+1:]
             alias = self.cfg.get(arg)
             if alias:
-                cmdline += alias.replace(i)
+                i, replacement = alias.replace(i, rem)
+                cmdline += replacement
             else:
                 cmdline += [arg]
+            i += 1
         return cmdline
 
 def main(args):
@@ -103,7 +120,6 @@ def main(args):
         help='the cmdline',
     )
     ns = parser.parse_args(args)
-    eprint(f'ns.cmdline={ns.cmdline}')
     epithet = Epithet(CONFIGS, split(ns.cmdline))
     print(*epithet.replace())
 
